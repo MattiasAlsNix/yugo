@@ -26,7 +26,7 @@ defmodule Yugo.Client do
   """
 
   use GenServer
-  alias Yugo.{Conn, Parser, Filter}
+  alias Yugo.{Conn, Parser, Filter, SSLHelper}
 
   @typedoc """
   The identifier used to refer to a [`Client`](`Yugo.Client`).
@@ -104,14 +104,6 @@ defmodule Yugo.Client do
 
   @common_connect_opts [packet: :line, active: :once, mode: :binary]
 
-  defp ssl_opts(server, ssl_verify),
-    do:
-      [
-        server_name_indication: server,
-        verify: ssl_verify,
-        cacerts: :public_key.cacerts_get()
-      ] ++ @common_connect_opts
-
   @impl true
   def init(args) do
     send(self(), {:do_init, args})
@@ -146,11 +138,7 @@ defmodule Yugo.Client do
   def handle_info({:do_init, args}, _state) do
     {:ok, socket} =
       if args[:tls] do
-        :ssl.connect(
-          args[:server],
-          args[:port],
-          ssl_opts(args[:server], args[:ssl_verify])
-        )
+        SSLHelper.connect(args[:server], args[:port], args[:ssl_verify], @common_connect_opts)
       else
         :gen_tcp.connect(args[:server], args[:port], @common_connect_opts)
       end
@@ -302,8 +290,7 @@ defmodule Yugo.Client do
   end
 
   defp on_starttls_response(conn, :ok, _text) do
-    {:ok, socket} = :ssl.connect(conn.socket, ssl_opts(conn.server, conn.ssl_verify), :infinity)
-
+    {:ok, socket} = SSLHelper.use_socket(conn, @common_connect_opts)
     %{conn | tls: true, socket: socket}
     |> do_login()
   end
