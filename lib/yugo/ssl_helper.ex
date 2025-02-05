@@ -76,7 +76,7 @@ defmodule Yugo.SSLHelper do
       {{:other, :event}, []}
 
   """
-  def wildcard_verify_fun(_part, event = {:bad_cert, :hostname_check_failed}, state) do
+  def wildcard_verify_fun(_part, {:bad_cert, :hostname_check_failed} = event, state) do
     # IO.puts("Hostname check failed: #{inspect(event)}")
     case state do
       [hostname: server, names: names] ->
@@ -92,7 +92,8 @@ defmodule Yugo.SSLHelper do
         {:fail, []}
     end
   end
-  def wildcard_verify_fun(_part, event={:bad_cert, _}, _state) do
+
+  def wildcard_verify_fun(_part, {:bad_cert, _} = event, _state) do
     {:fail, event}
   end
 
