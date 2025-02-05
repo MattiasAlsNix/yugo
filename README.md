@@ -1,4 +1,11 @@
-# Yugo
+# Yugo - Fork
+
+**Important**:
+
+I use this project as a playground to learn Elixir and implement some features I need for my personal projects.
+Please do not use this fork for any purpose other than learning or testing or having fun with my code.
+
+---
 
 Yugo is an easy and high-level IMAP client library for Elixir.
 
