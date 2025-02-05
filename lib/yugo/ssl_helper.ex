@@ -30,19 +30,15 @@ defmodule Yugo.SSLHelper do
   end
 
   @spec use_socket(Yugo.Conn.t(), Map.t()) :: {:ok, :ssl.sslsocket()} | {:error, any}
-  def use_socket(
-        %Yugo.Conn{socket: socket, server: server, ssl_verify: ssl_verify},
-        common_connect_opts
-      )
-      when nil != socket do
+  def use_socket(%Yugo.Conn{socket: socket} = conn, common_connect_opts) when nil != socket do
     :ssl.connect(
       socket,
-      ssl_opts(server, ssl_verify) ++ common_connect_opts,
+      ssl_opts(conn.server, conn.ssl_verify) ++ common_connect_opts,
       :infinity
     )
   end
 
-  @spec connect(charlist(), integer, :verify_none | :verify_peer, Map.t()) ::
+  @spec connect(charlist, integer, :verify_none | :verify_peer, Map.t()) ::
           {:ok, :ssl.sslsocket()} | {:error, any}
   def connect(server, port, ssl_verify, common_connect_opts) do
     :ssl.connect(
@@ -77,15 +73,14 @@ defmodule Yugo.SSLHelper do
 
   """
   def wildcard_verify_fun(_part, {:bad_cert, :hostname_check_failed} = event, state) do
-    # IO.puts("Hostname check failed: #{inspect(event)}")
     case state do
       [hostname: server, names: names] ->
         case valid_wildcard_available?(server, names) do
-          false ->
-            {:fail, event}
-
           true ->
             {:valid_peer, []}
+
+          false ->
+            {:fail, event}
         end
 
       _ ->
