@@ -58,38 +58,42 @@ defmodule Yugo.SSLHelper do
   ## Examples:
 
       iex> Yugo.SSLHelper.wildcard_verify_fun([], {:bad_cert, :hostname_check_failed}, [hostname: ~c"mail.example.com", names: [~c"example.com", ~c"*.example.com"]])
-      {:valid, []}
+      {:valid_peer, []}
 
       iex> Yugo.SSLHelper.wildcard_verify_fun([], {:bad_cert, :hostname_check_failed}, [hostname: ~c"mail.example.com", names: [~c"example.net", ~c"*.example.net"]])
-      {:bad_cert, :hostname_check_failed}
+      {:fail, {:bad_cert, :hostname_check_failed}}
 
       iex> Yugo.SSLHelper.wildcard_verify_fun([], {:bad_cert, :hostname_check_failed}, [])
-      {:invalid, []}
+      {:fail, []}
 
       iex> Yugo.SSLHelper.wildcard_verify_fun([], {:extension, {:Extension, {2, 5, 29, 17}, true, [dNSName: ~c"example.com", dNSName: ~c"*.example.com"]}}, [])
       {:valid, [names: [~c"example.com", ~c"*.example.com"]]}
 
       iex> Yugo.SSLHelper.wildcard_verify_fun([], {:extension, {:Extension, {2, 5, 29, 19}, true, []}}, [])
-      {:valid, []}
+      {:unknown, []}
 
       iex> Yugo.SSLHelper.wildcard_verify_fun([], {:other, :event}, [])
       {{:other, :event}, []}
 
   """
   def wildcard_verify_fun(_part, event = {:bad_cert, :hostname_check_failed}, state) do
+    # IO.puts("Hostname check failed: #{inspect(event)}")
     case state do
       [hostname: server, names: names] ->
         case valid_wildcard_available?(server, names) do
           false ->
-            event
+            {:fail, event}
 
           true ->
-            {:valid, []}
+            {:valid_peer, []}
         end
 
       _ ->
-        {:invalid, state}
+        {:fail, []}
     end
+  end
+  def wildcard_verify_fun(_part, event={:bad_cert, _}, _state) do
+    {:fail, event}
   end
 
   def wildcard_verify_fun(_part, {:extension, extension}, state) do
@@ -103,11 +107,12 @@ defmodule Yugo.SSLHelper do
         {:valid, state ++ [names: names |> Enum.map(extract_name)]}
 
       _ ->
-        {:valid, state}
+        {:unknown, state}
     end
   end
 
   def wildcard_verify_fun(_part, event, state) do
+    IO.puts("Unknown event: #{inspect(event)}")
     {event, state}
   end
 
