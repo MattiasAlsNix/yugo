@@ -1,3 +1,4 @@
+ExUnit.configure(exclude: [:external])
 ExUnit.start()
 
 defmodule Helpers.Client do
