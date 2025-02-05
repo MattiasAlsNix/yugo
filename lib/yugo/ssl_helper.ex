@@ -6,8 +6,16 @@ defmodule Yugo.SSLHelper do
   # List of used OIDs for SSL/TLS certificates: https://www.alvestrand.no/objectid/2.5.29.html
   @id_ce_subject_alt_name {2, 5, 29, 17}
 
+  @doc ~S"""
+
+  ## Examples:
+
+      iex> opts = Yugo.SSLHelper.ssl_opts(~c"mail.example.com", :verify_peer)
+      iex> assert true == Keyword.has_key?(opts, :verify_fun)
+
+  """
   @spec ssl_opts(charlist(), :verify_none | :verify_peer) :: [any]
-  defp ssl_opts(server, ssl_verify) do
+  def ssl_opts(server, ssl_verify) do
     opts = [
       server_name_indication: server,
       verify: ssl_verify,
@@ -44,20 +52,38 @@ defmodule Yugo.SSLHelper do
     )
   end
 
-  def wildcard_verify_fun(_part, event = {:bad_cert, :hostname_check_failed}, state) do
-    IO.puts("Bad certificate: hostname_check_failed")
+  @doc ~S"""
+  Verify function for SSL/TLS connections.
 
+  ## Examples:
+
+      iex> Yugo.SSLHelper.wildcard_verify_fun([], {:bad_cert, :hostname_check_failed}, [hostname: ~c"mail.example.com", names: [~c"example.com", ~c"*.example.com"]])
+      {:valid, []}
+
+      iex> Yugo.SSLHelper.wildcard_verify_fun([], {:bad_cert, :hostname_check_failed}, [hostname: ~c"mail.example.com", names: [~c"example.net", ~c"*.example.net"]])
+      {:bad_cert, :hostname_check_failed}
+
+      iex> Yugo.SSLHelper.wildcard_verify_fun([], {:bad_cert, :hostname_check_failed}, [])
+      {:invalid, []}
+
+      iex> Yugo.SSLHelper.wildcard_verify_fun([], {:extension, {:Extension, {2, 5, 29, 17}, true, [dNSName: ~c"example.com", dNSName: ~c"*.example.com"]}}, [])
+      {:valid, [names: [~c"example.com", ~c"*.example.com"]]}
+
+      iex> Yugo.SSLHelper.wildcard_verify_fun([], {:extension, {:Extension, {2, 5, 29, 19}, true, []}}, [])
+      {:valid, []}
+
+      iex> Yugo.SSLHelper.wildcard_verify_fun([], {:other, :event}, [])
+      {{:other, :event}, []}
+
+  """
+  def wildcard_verify_fun(_part, event = {:bad_cert, :hostname_check_failed}, state) do
     case state do
       [hostname: server, names: names] ->
-        IO.puts("Checking for wildcards in Certificate names: #{inspect(names)}")
-
         case valid_wildcard_available?(server, names) do
           false ->
-            IO.puts("No valid wildcard found in certificate names")
             event
 
           true ->
-            IO.puts("Valid wildcard found in certificate names")
             {:valid, []}
         end
 
@@ -68,9 +94,7 @@ defmodule Yugo.SSLHelper do
 
   def wildcard_verify_fun(_part, {:extension, extension}, state) do
     case extension do
-      {:Extension, @id_ce_subject_alt_name, critical, names} ->
-       IO.puts("Extension names (critical: #{critical}): #{inspect(names)}")
-
+      {:Extension, @id_ce_subject_alt_name, _critical, names} ->
         extract_name = fn x ->
           {:dNSName, name} = x
           name
@@ -84,19 +108,21 @@ defmodule Yugo.SSLHelper do
   end
 
   def wildcard_verify_fun(_part, event, state) do
-    IO.puts("Default event handling: #{inspect(event)}")
     {event, state}
   end
 
-  @doc """
+  @doc ~S"""
   Check if a wildcard is available in the certificate names.
 
-  Examples:
+  ## Examples:
 
       iex> Yugo.SSLHelper.valid_wildcard_available?(~c"mail.example.com", [~c"example.com", ~c"*.example.com"])
       true
 
       iex> Yugo.SSLHelper.valid_wildcard_available?(~c"mail.example.com", [~c"example.net", ~c"*.example.net"])
+      false
+
+      iex> Yugo.SSLHelper.valid_wildcard_available?(~c"mail.example.com", [~c"example.com", ~c"example.net"])
       false
   """
   def valid_wildcard_available?(server, names) do
