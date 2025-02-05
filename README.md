@@ -5,6 +5,21 @@
 I use this project as a playground to learn Elixir and implement some features I need for my personal projects.
 Please do not use this fork for any purpose other than learning or testing or having fun with my code.
 
+## Testing with different TLS certificates
+I am using the site [https://www.badssl.com](https://www.badssl.com) to test the TLS certificate validation.
+The site provides different endpoints with different issues in the certificate chain.
+
+To test the certificate validation, I have added a test case that uses the endpoint `https://bad.host.badssl.com/` which uses a not matching wildcard certificate.
+
+```shell
+$ mix test --only external
+Running ExUnit with seed: 625074, max_cases: 20
+Excluding tags: [:test]
+Including tags: [:external]
+[...]
+```
+
+
 ---
 
 Yugo is an easy and high-level IMAP client library for Elixir.
